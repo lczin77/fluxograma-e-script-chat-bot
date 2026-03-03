@@ -6,8 +6,8 @@
  * - Finais de semana e feriados: Fechado
  */
 
-async function isBusinessHours(dateInput = new Date()) {
-    const data = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+async function estaNoHorarioComercial(entradaData = new Date()) {
+    const data = typeof entradaData === 'string' ? new Date(entradaData) : entradaData;
     const ano = data.getFullYear();
     
     // Obtém o dia da semana (0 = Domingo, 1 = Segunda ... 6 = Sábado)
@@ -15,30 +15,30 @@ async function isBusinessHours(dateInput = new Date()) {
     
     // 1. Verifica final de semana
     if (diaSemana === 0 || diaSemana === 6) {
-        return `Entrada: ${formatDate(data)} - Resultado: Fora do horário de funcionamento (Final de semana)`;
+        return `Entrada: ${formatarData(data)} - Resultado: Fora do horário de funcionamento (Final de semana)`;
     }
 
     // 2. Busca feriados na BrasilAPI
     try {
-        const response = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
-        if (response.ok) {
-            const feriados = await response.json();
+        const resposta = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
+        if (resposta.ok) {
+            const feriados = await resposta.json();
             // Formata a data atual para YYYY-MM-DD para comparar com a API
-            const dataString = data.toISOString().split('T')[0];
-            const isFeriado = feriados.some(feriado => feriado.date === dataString);
+            const dataTexto = data.toISOString().split('T')[0];
+            const ehFeriado = feriados.some(feriado => feriado.date === dataTexto);
             
-            if (isFeriado) {
-                return `Entrada: ${formatDate(data)} - Resultado: Fora do horário de funcionamento (Feriado)`;
+            if (ehFeriado) {
+                return `Entrada: ${formatarData(data)} - Resultado: Fora do horário de funcionamento (Feriado)`;
             }
         }
-    } catch (error) {
-        console.error("Erro ao consultar a BrasilAPI:", error);
+    } catch (erro) {
+        console.error("Erro ao consultar a BrasilAPI:", erro);
     }
 
     // 3. Verifica regras de horário
     const hora = data.getHours();
     const minutos = data.getMinutes();
-    const tempoEmMinutos = (hora * 60) + minutos;
+    const tempoTotalEmMinutos = (hora * 60) + minutos;
     
     const inicioExpediente = 8 * 60; // 08:00
     let fimExpediente;
@@ -51,39 +51,47 @@ async function isBusinessHours(dateInput = new Date()) {
         fimExpediente = 19 * 60;
     }
 
-    if (tempoEmMinutos >= inicioExpediente && tempoEmMinutos < fimExpediente) {
-        return `Entrada: ${formatDate(data)} - Resultado: Dentro do horário de funcionamento`;
+    if (tempoTotalEmMinutos >= inicioExpediente && tempoTotalEmMinutos < fimExpediente) {
+        return `Entrada: ${formatarData(data)} - Resultado: Dentro do horário de funcionamento`;
     } else {
-        return `Entrada: ${formatDate(data)} - Resultado: Fora do horário de funcionamento`;
+        return `Entrada: ${formatarData(data)} - Resultado: Fora do horário de funcionamento`;
     }
 }
 
-// Função auxiliar para formatar a saída igual ao exemplo solicitado
-function formatDate(date) {
-    const dias = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
-    const pad = (num) => String(num).padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())} (${dias[date.getDay()]})`;
+// Função auxiliar para formatar a saída
+function formatarData(dataObjeto) {
+    const nomesDias = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+    const preencherZero = (numero) => String(numero).padStart(2, '0');
+    
+    const ano = dataObjeto.getFullYear();
+    const mes = preencherZero(dataObjeto.getMonth() + 1);
+    const dia = preencherZero(dataObjeto.getDate());
+    const hora = preencherZero(dataObjeto.getHours());
+    const min = preencherZero(dataObjeto.getMinutes());
+    const nomeDia = nomesDias[dataObjeto.getDay()];
+
+    return `${ano}-${mes}-${dia} ${hora}:${min} (${nomeDia})`;
 }
 
-// Testando os cenários exigidos no desafio
+// Executando os testes
 async function rodarTestes() {
     console.log("=== INICIANDO TESTES ===");
     
-    // Cenário 1
-    console.log(await isBusinessHours("2025-12-30T10:15:00-03:00")); 
+    // Cenário 1: Terça-feira de manhã
+    console.log(await estaNoHorarioComercial("2025-12-30T10:15:00-03:00")); 
     
-    // Cenário 2 (Nota: A regra diz que Terça vai até 20:00, então 19:10 dará "Dentro")
-    console.log(await isBusinessHours("2025-12-30T19:10:00-03:00")); 
+    // Cenário 2: Terça-feira à noite
+    console.log(await estaNoHorarioComercial("2025-12-30T19:10:00-03:00")); 
     
-    // Cenário 3 (Domingo)
-    console.log(await isBusinessHours("2025-12-28T11:00:00-03:00")); 
+    // Cenário 3: Domingo
+    console.log(await estaNoHorarioComercial("2025-12-28T11:00:00-03:00")); 
     
-    // Cenário 4 (Natal - Feriado)
-    console.log(await isBusinessHours("2025-12-25T10:00:00-03:00")); 
+    // Cenário 4: Natal (Feriado)
+    console.log(await estaNoHorarioComercial("2025-12-25T10:00:00-03:00")); 
     
     // Momento Atual
     console.log("\n--- MOMENTO ATUAL ---");
-    console.log(await isBusinessHours());
+    console.log(await estaNoHorarioComercial());
 }
 
 rodarTestes();
